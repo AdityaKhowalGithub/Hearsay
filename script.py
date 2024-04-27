@@ -1,89 +1,57 @@
-# from flask import Flask, request, send_file, render_template, jsonify  # Import jsonify here
-
-# import requests
-# from bs4 import BeautifulSoup
-# from gtts import gTTS
-# import os
-
-# app = Flask(__name__)
-
-# @app.route('/')
-# def index():
-    # return render_template('index.html')
-
-# @app.route('/summarize', methods=['POST'])
-# def summarize():
-    # url = request.form['url']
-    # response = requests.get(url)
-    # soup = BeautifulSoup(response.content, 'html.parser')
-    # print('soup')
-    # print(soup) 
-    # text = ' '.join(p.text.strip() for p in soup.find_all('p'))
-    # print("Extracted Text:", text)  # Debug print to check what text is being extracted
-    
-    # if not text:
-        # error_message = "No text found on the page to speak."
-        # print(error_message)  # Optionally log this error
-        # return jsonify({'error': error_message}), 400
-
-    # tts = gTTS(text=text, lang='en')
-    # audio_file = 'static/summary.mp3'
-    # tts.save(audio_file)
-    # return send_file(audio_file, as_attachment=True)
 
 
-# if __name__ == '__main__':
-    # app.run(debug=True)
-from flask import Flask, request, send_file, render_template, jsonify
-import os
+import requests
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-import time
-from gtts import gTTS
-from bs4 import BeautifulSoup
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-app = Flask(__name__)
+def summarize_html(html_content, headers):
+    """
+    Send the HTML content to the LLM to summarize.
+    """
+    data = {'inputs': html_content}
+    response = requests.post(base_url + '/summarize', json=data, headers=headers)  # Corrected endpoint
+    print("API Response:", response.json())  # Debug output to see what the API returns
+    if response.status_code == 200:
+        try:
+            return response.json()['summary']  # Assuming 'summary' is the correct key
+        except KeyError:
+            return "No 'summary' key found in the response"
+    else:
+        return "Error summarizing HTML, status code: " + str(response.status_code)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+def describe_website(summary, headers):
+    """
+    Get a user-friendly description of the website and follow-up navigation questions.
+    """
+    data = {'inputs': summary}
+    response = requests.post(base_url + '/describe', json=data, headers=headers)  # Corrected endpoint
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return "Error getting website description."
 
-@app.route('/summarize', methods=['POST'])
-def summarize():
-    url = request.form['url']
+# Selenium setup
+chromedriver_path = '/Users/adityakhowal/Downloads/chromedriver-mac-arm64/chromedriver'
+service = Service(executable_path=chromedriver_path)
+driver = webdriver.Chrome(service=service)
+base_url = "http://localhost:1234/v1"
+api_key = "lm-studio"
+headers = {'Authorization': 'Bearer ' + api_key}  # Define headers here to use across functions
 
-    # Setup Selenium with headless Chrome
-    options = Options()
-    options.add_argument('--headless')  # Run Chrome in headless mode.
-    options.add_argument('--no-sandbox')  # Bypass OS security model
-    options.add_argument('--disable-dev-shm-usage')  # Overcome limited resource problems
-    driver = webdriver.Chrome(options=options)
+# Open the target website
+driver.get("https://swecc.org/")
+try:
+    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+    html_content = driver.page_source
 
-    try:
-        driver.get(url)
-        time.sleep(3)  # Wait for the JavaScript to render
+    # Process the HTML content through the LLM
+    summary = summarize_html(html_content, headers)
+    description = describe_website(summary, headers)
+    print(description)
 
-        # Using Selenium to fetch the page source after JavaScript execution
-        page_source = driver.page_source
-        soup = BeautifulSoup(page_source, 'html.parser')
-        text = ' '.join(p.text.strip() for p in soup.find_all('p'))
-        print("Extracted Text:", text)  # Debug print to check what text is being extracted
-
-        if not text:
-            error_message = "No text found on the page to speak."
-            print(error_message)  # Optionally log this error
-            return jsonify({'error': error_message}), 400
-
-        # Proceed if text is found
-        tts = gTTS(text=text, lang='en')
-        audio_file = 'static/summary.mp3'
-        tts.save(audio_file)
-        return send_file(audio_file, as_attachment=True)
-
-    finally:
-        driver.quit()  # Make sure to quit the driver to free resources
-
-if __name__ == '__main__':
-    app.run(debug=True)
+finally:
+    driver.quit()
 

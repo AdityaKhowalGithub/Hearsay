@@ -1,3 +1,7 @@
+<div align="center">
+<img src="https://raw.githubusercontent.com/AdityaKhowalGithub/Hearsay/main/DALL%C2%B7E%202024-04-27%2023.03.10%20-%20Create%20a%20simplified%20logo%20for%20an%20app%20named%20'HereSay'%2C%20suitable%20for%20a%20Chrome%20extension.%20The%20logo%20should%20focus%20on%20accessibility%20and%20AI%2C%20using%20minimal%20des.webp" height="500" align="center"  />
+</div>
+
 # HereSay
 
 HereSay is an innovative Chrome extension designed to enhance web accessibility by providing auditory descriptions and interactive options for navigating web content.
